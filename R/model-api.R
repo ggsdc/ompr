@@ -260,3 +260,164 @@ variable_bounds.optimization_model <- function(model) {
     upper = extract_bounds_u(model_vars, keys)
   )
 }
+
+write_MPS <- function(model, file, modelname="OMPR1") UseMethod("write_MPS")
+
+write_MPS.optimization_model <- function(model, file, modelname="OMPR1"){
+  # Control section
+  Rprof()
+
+  # Prepare MPS data format
+  mpsConsTypes <- c("E", "L", "G")
+  consTypes <- c("==", "<=", ">=")
+
+  mpsUpperBoundType <- c("UI", "BV", "UP")
+  mpsLowBoundType <- c("LI", "", "LO")
+  omprBoundType <- c("integer", "binary", "continuous")
+
+
+  # Prepare model data section
+  modelConstraints <- extract_constraints(model)
+  modelVarNames <- variable_keys(model)
+  modelObjFunction <- objective_function(model)
+  modelVarType <- as.character(variable_types(model))
+  modelVarBounds <- variable_bounds(model)
+
+  matrixA <- modelConstraints$matrix
+  vectorC <- modelObjFunction$vector
+
+  numVar <- ncol(matrixA)
+  namesVars <- str_c("V_", formatC(seq(1:numVar), width=nchar(numVar), format="d", flag="0"))
+  widthVars <- 2 + nchar(numVar)
+
+  numCons <- nrow(matrixA)
+  namesCons <- str_c("R_", formatC(seq(1:numCons), width=nchar(numCons), format="d", flag="0"))
+  widthCons <- 2 + nchar(numCons)
+
+  colnames(matrixA) <- namesVars
+  rownames(matrixA) <- namesCons
+
+  dirCons <- modelConstraints$direction
+  rhsCons <- modelConstraints$rhs
+
+  dfCons <- data.frame(namesCons,
+                       dirCons,
+                       rhsCons,
+                       stringsAsFactors=FALSE) %>%
+    rename(cons = namesCons,
+           dir = dirCons,
+           rhs = rhsCons) %>%
+    rowwise() %>%
+    mutate(mpsDir = mgsub(dir, consTypes, mpsConsTypes)) %>%
+    mutate(row = str_c(str_pad("", 1, pad=" ", side="left"),
+                       mpsDir,
+                       str_pad("",2,pad=" ", side="left"),
+                       cons)) %>%
+    mutate(rhsLine = str_c(str_pad(string = "", width =4, side = "left", pad = " "),
+                           "RHS1",
+                           str_pad(string = "", width = (10 - nchar("RHS1")), side = "left", pad = " "),
+                           cons,
+                           str_pad(string="", width = (10 - nchar(cons)), side = "left", pad = " " ),
+                           formatC(rhs, digits = 10, format="g"))) %>%
+    data.table()
+
+  dfVectorC <- data.frame("OBJ",
+                          namesVars,
+                          vectorC,
+                          stringsAsFactors = FALSE) %>%
+    rename(cons= X.OBJ., vars=namesVars, coef=vectorC)
+
+
+  dfMatrixA <- as.data.frame(as.table(matrixA), stringsAsFactors = FALSE) %>%
+    rename(cons=Var1, vars=Var2, coef=Freq) %>%
+    rbind(dfVectorC) %>%
+    filter(coef!=0) %>%
+    arrange(vars, cons) %>%
+    rowwise() %>%
+    mutate(line = str_c(str_pad(string = "", width =4, side = "left", pad = " "),
+                        vars,
+                        str_pad(string = "", width = (10 - nchar(vars)), side = "left", pad = " "),
+                        cons,
+                        str_pad(string="", width = (10 - nchar(cons)), side = "left", pad = " " ),
+                        formatC(coef, digits = 10, format="g"))) %>%
+    data.table()
+
+  dfVarBoundUp <-data.frame(modelVarType,
+                            namesVars,
+                            "UPPER",
+                            modelVarBounds$upper,
+                            stringsAsFactors = FALSE) %>%
+    rename(type = modelVarType,
+           vars = namesVars,
+           bound = X.UPPER.,
+           value=modelVarBounds.upper) %>%
+    rowwise() %>%
+    mutate(boundType = mgsub(type, omprBoundType, mpsUpperBoundType)) %>%
+    arrange(vars)
+
+  dfVarBoundLow <- data.frame(modelVarType,
+                              namesVars,
+                              "LOWER",
+                              modelVarBounds$lower,
+                              stringsAsFactors = FALSE) %>%
+    rename(type = modelVarType,
+           vasr = namesVars,
+           bound = X.LOWER.,
+           value=modelVarBounds.lower) %>%
+    rowwise() %>%
+    mutate(boundType = mgsub(type, omprBoundType, mpsLowBoundType)) %>%
+    filter(value != 0) %>%
+    arrange(vars)
+
+  dfVarBounds <- rbind(dfVarBoundUp, dfVarBoundLow) %>%
+    arrange(vars) %>%
+    mutate(line = str_c(str_pad("", width = 1, side = "left" ,pad = " "),
+                        boundType,
+                        str_pad("", width = 1, side = "left", pad = " "),
+                        "BOUND1",
+                        str_pad("", width = 4, side = "left", pad = " "),
+                        vars,
+                        str_pad(string="", width = (10 - nchar(vars)), side = "left", pad = " " ),
+                        formatC(value, digits = 10, format="g")))
+
+
+  # Write the first line of the file: NAME
+  name <- str_c("NAME", str_pad("",11, "right"), modelname)
+  write(name, file=file)
+
+  # Write the ROWS section
+  write("ROWS", file=file, append = TRUE)
+
+  ## First we write the objective function
+  obj <- str_c(str_pad("N", 2, "left"), str_pad("", 2, "right"), "OBJ")
+  write(obj, file=file, append = TRUE)
+
+  ## Then we write the rest of the constraints
+  cons <- dfCons$row
+  write(cons, file=file, append = TRUE)
+
+  # Write the COLUMNS section
+  write("COLUMNS", file=file, append = TRUE)
+
+  columns <- dfMatrixA$line
+  write(columns, file=file, append=TRUE)
+
+  # Write the RHS section
+  write("RHS", file=file, append = TRUE)
+
+  dfConsAux <- dfCons %>%
+    filter(rhs != 0)
+
+  rhsLines <- dfConsAux$rhsLine
+  write(rhsLines, file=file, append=TRUE)
+
+  # Write the BOUNDS section
+  write("BOUNDS", file=file, append = TRUE)
+
+  boundLines <- dfVarBounds$line
+  write(boundLines, file=file, append=TRUE)
+
+  # Write ENDATA
+  write("ENDATA", file=file, append = TRUE)
+
+}

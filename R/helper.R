@@ -497,3 +497,18 @@ validate_quantifier_candidates <- function(candidates, zero_vars_msg) {
   })
   stopifnot(only_integer_candidates)
 }
+
+# helper function to do several replacements with gsub
+mgsub <- function(string, pattern, replacement){
+  if (length(pattern) != length(replacement)){
+    stop("Pattern and replacement do not have the same length.")
+  }
+  result <- string
+  for (i in 1: length(pattern)){
+    result <- gsub(pattern = pattern[i],
+                   replacement = replacement[i],
+                   x = result)
+  }
+  result
+}
+
