@@ -21,10 +21,12 @@ Write the model as a .mps file
 }
 \examples{
 library(magrittr)
-model <- MIPModel() \%>\%
-  add_variable(x, type = "binary") \%>\%
-  add_variable(y, type = "continuous", lb = 2) \%>\%
-  add_variable(z, type = "integer", ub = 3)
+result <- MIPModel() \%>\%
+ add_variable(x, type = "integer") \%>\%
+ add_variable(y, type = "continuous", lb = 0) \%>\%
+ set_bounds(x, lb = 0) \%>\%
+ set_objective(x + y, "max") \%>\%
+ add_constraint(x + y <= 11.25)
 
 write_MPS(model = model, file = "test.mps", modelname = "TEST")
 }
