@@ -261,8 +261,27 @@ variable_bounds.optimization_model <- function(model) {
   )
 }
 
+#' Write the model as a .mps file
+#'
+#' @param model the model
+#' @param file the route and name of the output file
+#' @param modelname (optional). Sets the model name inside the file, default is "OMPR1"
+#'
+#' @return It writes the model to the indicated file
+#'
+#'
+#' @examples
+#' library(magrittr)
+#' model <- MIPModel() %>%
+#'   add_variable(x, type = "binary") %>%
+#'   add_variable(y, type = "continuous", lb = 2) %>%
+#'   add_variable(z, type = "integer", ub = 3)
+#'
+#' write_MPS(model = model, file = "test.mps", modelname = "TEST")
+#' @export
 write_MPS <- function(model, file, modelname="OMPR1") UseMethod("write_MPS")
 
+#' @export
 write_MPS.optimization_model <- function(model, file, modelname="OMPR1"){
   # Control section
   Rprof()
