@@ -435,3 +435,71 @@ write_MPS.optimization_model <- function(model, file, modelname="OMPR1"){
   write("ENDATA", file=file, append = TRUE)
 
 }
+
+#' Calls cbc through a command to solve a MIP problem ina  .mps file
+#'
+#' @param mpsFile The .mps file containing the model
+#' @param saveSolution If the solution should be stored in a specific file. 0 would save it in
+#'        generic file that would be overwritten in the next solve call, 1 would save it in other file
+#'        with name given or 'randomly' generated
+#' @param solutionFile (optional) The name to give to the solution file.
+#' @param timeLimit (optional) The time limit to give the solver, in seconds.
+#' @param ... (optional) The rest of the parameters for the solver (to be implemented)
+#'
+#'
+#'
+#' @examples
+#' library(magrittr)
+#' result <- MIPModel() %>%
+#'  add_variable(x, type = "integer") %>%
+#'  add_variable(y, type = "continuous", lb = 0) %>%
+#'  set_bounds(x, lb = 0) %>%
+#'  set_objective(x + y, "max") %>%
+#'  add_constraint(x + y <= 11.25)
+#'
+#' write_MPS(model = model, file = "test.mps", modelname = "TEST")
+#'
+#' solve_CBC(mpsFile="test.mps", saveSolution=1, solutionFile="testsolution.txt", timeLimit=60)
+#' @export
+solve_CBC <- function(mpsFile, saveSolution=0, solutionFile="", timeLimit=0, ...){
+
+  if(!file.exists(mpsFile)){
+    stop(paste("The file", mpsFile, "does not exist, please load an existing file"))
+  }
+  solveCommand <- "cbc"
+  solveArgs <- mpsFile
+  #command <- paste("cmd.exe /c cbc", mpsFile)
+
+  if(timeLimit<0){
+
+    stop("The time limit must be a positive integer")
+
+  }
+  else if(timeLimit!=0){
+
+    solveArgs <- paste(solveArgs, "sec", as.character(timeLimit))
+
+  }
+
+  solveArgs <- paste(solveArgs, "solve")
+
+  if(saveSolution == 0){
+    solveArgs <- paste(solveArgs, "solu cbcsolution.txt")
+  }
+  else if(saveSolution == 1){
+    if (solutionFile==""){
+      randomSolutionFile <- paste0("cbcsolution_",format(Sys.time(), "%Y-%m-%d_%H-%M-%S"),".txt")
+      warning(paste("No solution file was given, the following file name was generated and assigned:", randomSolutionFile))
+      solveArgs <- paste(solveArgs, "solu", randomSolutionFile)
+    }
+    else if(grepl(".txt", solutionFile)){
+      solveArgs <- paste(solveArgs, "solu", solutionFile)
+    }
+    else {
+      stop("The given name for the solution file is not right, please check it")
+    }
+  }
+
+  system2(command=solveCommand, args=solveArgs)
+
+}
