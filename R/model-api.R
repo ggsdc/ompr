@@ -310,12 +310,21 @@ write_MPS.optimization_model <- function(model, file, modelname="OMPR1"){
   vectorC <- modelObjFunction$vector
 
   numVar <- ncol(matrixA)
-  namesVars <- str_c("V_", formatC(seq(1:numVar), width=nchar(numVar), format="d", flag="0"))
-  widthVars <- 2 + nchar(numVar)
+  namesVars <- stringr::str_c("V_",
+                              formatC(seq(1:numVar),
+                                      width=nchar(numVar),
+                                      format="d",
+                                      flag="0"))
+
 
   numCons <- nrow(matrixA)
-  namesCons <- str_c("R_", formatC(seq(1:numCons), width=nchar(numCons), format="d", flag="0"))
-  widthCons <- 2 + nchar(numCons)
+  namesCons <- stringr::str_c("R_",
+                              formatC(seq(1:numCons),
+                                      width=nchar(numCons),
+                                      format="d",
+                                      flag="0"))
+
+
 
   colnames(matrixA) <- namesVars
   rownames(matrixA) <- namesCons
@@ -323,96 +332,78 @@ write_MPS.optimization_model <- function(model, file, modelname="OMPR1"){
   dirCons <- modelConstraints$direction
   rhsCons <- modelConstraints$rhs
 
-  dfCons <- data.frame(namesCons,
-                       dirCons,
-                       rhsCons,
+  dfCons <- data.frame(cons=namesCons,
+                       dir=dirCons,
+                       rhs=rhsCons,
                        stringsAsFactors=FALSE) %>%
-    rename(cons = namesCons,
-           dir = dirCons,
-           rhs = rhsCons) %>%
-    rowwise() %>%
-    mutate(mpsDir = mgsub(dir, consTypes, mpsConsTypes)) %>%
-    mutate(row = str_c(str_pad("", 1, pad=" ", side="left"),
-                       mpsDir,
-                       str_pad("",2,pad=" ", side="left"),
-                       cons)) %>%
-    mutate(rhsLine = str_c(str_pad(string = "", width =4, side = "left", pad = " "),
-                           "RHS1",
-                           str_pad(string = "", width = (10 - nchar("RHS1")), side = "left", pad = " "),
-                           cons,
-                           str_pad(string="", width = (10 - nchar(cons)), side = "left", pad = " " ),
-                           formatC(rhs, digits = 10, format="g"))) %>%
-    data.table()
+    dplyr::mutate(mpsDir = mgsub(dir, consTypes, mpsConsTypes)) %>%
+    dplyr::mutate(row = stringr::str_c(stringr::str_pad("", 1, pad=" ", side="left"),
+                                       mpsDir,
+                                       stringr::str_pad("",2,pad=" ", side="left"),
+                                       cons)) %>%
+    dplyr::mutate(rhsLine = stringr::str_c(stringr::str_pad(string = "", width =4, side = "left", pad = " "),
+                                           "RHS1",
+                                           stringr::str_pad(string = "", width = (10 - nchar("RHS1")), side = "left", pad = " "),
+                                           cons,
+                                           stringr::str_pad(string="", width = (10 - nchar(cons)), side = "left", pad = " " ),
+                                           formatC(rhs, digits = 10, format="g")))
 
-  dfVectorC <- data.frame("OBJ",
-                          namesVars,
-                          vectorC,
-                          stringsAsFactors = FALSE) %>%
-    rename(cons= X.OBJ., vars=namesVars, coef=vectorC)
-
+  dfVectorC <- data.frame(cons="OBJ",
+                          vars=namesVars,
+                          coef=vectorC,
+                          stringsAsFactors = FALSE)
 
   dfMatrixA <- as.data.frame(as.table(matrixA), stringsAsFactors = FALSE) %>%
-    rename(cons=Var1, vars=Var2, coef=Freq) %>%
+    dplyr::rename(cons=Var1, vars=Var2, coef=Freq) %>%
     rbind(dfVectorC) %>%
-    filter(coef!=0) %>%
-    arrange(vars, cons) %>%
-    rowwise() %>%
-    mutate(line = str_c(str_pad(string = "", width =4, side = "left", pad = " "),
-                        vars,
-                        str_pad(string = "", width = (10 - nchar(vars)), side = "left", pad = " "),
-                        cons,
-                        str_pad(string="", width = (10 - nchar(cons)), side = "left", pad = " " ),
-                        formatC(coef, digits = 10, format="g"))) %>%
-    data.table()
+    dplyr::filter(coef!=0) %>%
+    dplyr::arrange(vars, cons) %>%
+    dplyr::mutate(line = stringr::str_c(stringr::str_pad(string = "", width =4, side = "left", pad = " "),
+                                        vars,
+                                        stringr::str_pad(string = "", width = (10 - nchar(vars)), side = "left", pad = " "),
+                                        cons,
+                                        stringr::str_pad(string="", width = (10 - nchar(cons)), side = "left", pad = " " ),
+                                        formatC(coef, digits = 10, format="g")))
 
-  dfVarBoundUp <-data.frame(modelVarType,
-                            namesVars,
-                            "UPPER",
-                            modelVarBounds$upper,
+  dfVarBoundUp <-data.frame(type=modelVarType,
+                            vars=namesVars,
+                            bound="UPPER",
+                            value=modelVarBounds$upper,
                             stringsAsFactors = FALSE) %>%
-    rename(type = modelVarType,
-           vars = namesVars,
-           bound = X.UPPER.,
-           value=modelVarBounds.upper) %>%
-    rowwise() %>%
-    mutate(boundType = mgsub(type, omprBoundType, mpsUpperBoundType)) %>%
-    arrange(vars)
+    dplyr::mutate(boundType = mgsub(type, omprBoundType, mpsUpperBoundType)) %>%
+    dplyr::filter(!is.infinite(value))
 
-  dfVarBoundLow <- data.frame(modelVarType,
-                              namesVars,
-                              "LOWER",
-                              modelVarBounds$lower,
+  dfVarBoundLow <- data.frame(type=modelVarType,
+                              vars=namesVars,
+                              bound="LOWER",
+                              value=modelVarBounds$lower,
                               stringsAsFactors = FALSE) %>%
-    rename(type = modelVarType,
-           vasr = namesVars,
-           bound = X.LOWER.,
-           value=modelVarBounds.lower) %>%
-    rowwise() %>%
-    mutate(boundType = mgsub(type, omprBoundType, mpsLowBoundType)) %>%
-    filter(value != 0) %>%
-    arrange(vars)
+    dplyr::mutate(boundType = mgsub(type, omprBoundType, mpsLowBoundType)) %>%
+    dplyr::mutate(boundType = dplyr::if_else(value==-Inf, "MI", boundType)) %>%
+    dplyr::mutate(value = dplyr::if_else(value==-Inf, "" , as.character(value))) %>%
+    dplyr::filter(value != 0)
 
   dfVarBounds <- rbind(dfVarBoundUp, dfVarBoundLow) %>%
-    arrange(vars) %>%
-    mutate(line = str_c(str_pad("", width = 1, side = "left" ,pad = " "),
-                        boundType,
-                        str_pad("", width = 1, side = "left", pad = " "),
-                        "BOUND1",
-                        str_pad("", width = 4, side = "left", pad = " "),
-                        vars,
-                        str_pad(string="", width = (10 - nchar(vars)), side = "left", pad = " " ),
-                        formatC(value, digits = 10, format="g")))
+    dplyr::arrange(vars) %>%
+    dplyr::mutate(line = str_c(stringr::str_pad("", width = 1, side = "left" ,pad = " "),
+                               boundType,
+                               stringr::str_pad("", width = 1, side = "left", pad = " "),
+                               "BOUND1",
+                               stringr::str_pad("", width = 4, side = "left", pad = " "),
+                               vars,
+                               stringr::str_pad(string="", width = (10 - nchar(vars)), side = "left", pad = " " ),
+                               formatC(value, digits = 10, format="g")))
 
 
   # Write the first line of the file: NAME
-  name <- str_c("NAME", str_pad("",11, "right"), modelname)
+  name <- stringr::str_c("NAME", stringr::str_pad("",11, "right"), modelname)
   write(name, file=file)
 
   # Write the ROWS section
   write("ROWS", file=file, append = TRUE)
 
   ## First we write the objective function
-  obj <- str_c(str_pad("N", 2, "left"), str_pad("", 2, "right"), "OBJ")
+  obj <- stringr::str_c(stringr::str_pad("N", 2, "left"), stringr::str_pad("", 2, "right"), "OBJ")
   write(obj, file=file, append = TRUE)
 
   ## Then we write the rest of the constraints
