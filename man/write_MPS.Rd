@@ -4,17 +4,21 @@
 \alias{write_MPS}
 \title{Write the model as a .mps file}
 \usage{
-write_MPS(model, file, modelname = "OMPR1")
+write_MPS(model, modelFile = NULL, returnMapping = 0, modelName = "OMPR1")
 }
 \arguments{
 \item{model}{the model}
 
-\item{file}{the route and name of the output file}
+\item{modelFile}{the route and name of the .mps file. If none is give a random name is given.}
 
-\item{modelname}{(optional). Sets the model name inside the file, default is "OMPR1"}
+\item{returnMapping}{If the mapping should be returned or not for the user to use
+(Should be returned if it is going to be solved if it is going to be solved with CBC).
+By default it is 0 (not to return), change to 1 to return mapping.}
+
+\item{modelName}{(optional). Sets the model name inside the file, default is "OMPR1"}
 }
 \value{
-It writes the model to the indicated file
+It writes the model to the indicated file and returns the mapping used (as a data.frame)
 }
 \description{
 Write the model as a .mps file
@@ -28,6 +32,6 @@ result <- MIPModel() \%>\%
  set_objective(x + y, "max") \%>\%
  add_constraint(x + y <= 11.25)
 
-write_MPS(model = model, file = "test.mps", modelname = "TEST")
+mapping <- write_MPS(model = model, file = "test.mps", modelname = "TEST")
 }
 

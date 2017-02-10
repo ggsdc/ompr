@@ -14,7 +14,9 @@ new_solution <- function(model,
                          solution) {
   stopifnot(is.numeric(objective_value))
   stopifnot(status %in% c("infeasible",
-                         "unbounded", "optimal"))
+                         "unbounded",
+                         "optimal",
+                         "integer solution"))
   stopifnot(all(nchar(names(solution))))
   structure(list(model = model,
                  objective_value = objective_value,

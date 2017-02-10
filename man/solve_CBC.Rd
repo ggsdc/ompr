@@ -2,7 +2,7 @@
 % Please edit documentation in R/model-api.R
 \name{solve_CBC}
 \alias{solve_CBC}
-\title{Calls cbc through a command to solve a MIP problem ina  .mps file}
+\title{Calls cbc through a command to solve a MIP problem in a  .mps file}
 \usage{
 solve_CBC(mpsFile, saveSolution = 0, solutionFile = "", timeLimit = 0,
   ...)
@@ -21,7 +21,7 @@ with name given or 'randomly' generated}
 \item{...}{(optional) The rest of the parameters for the solver (to be implemented)}
 }
 \description{
-Calls cbc through a command to solve a MIP problem ina  .mps file
+Calls cbc through a command to solve a MIP problem in a  .mps file
 }
 \examples{
 library(magrittr)

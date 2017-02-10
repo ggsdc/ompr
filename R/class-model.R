@@ -102,7 +102,8 @@ add_variable_.optimization_model <- function(model, variable, ...,
                lb = lb, ub = ub
                )
     model$variables[[var_name]] <- var
-  } else if (lazyeval::is_call(expr) && expr[[1]] == "[") {
+  }
+  else if (lazyeval::is_call(expr) && expr[[1]] == "[") {
 
     # first we need to bind all variables
     var_name <- as.character(expr[[2]])
@@ -145,7 +146,8 @@ add_variable_.optimization_model <- function(model, variable, ...,
                lb = rep.int(lb, n_vars),
                ub = rep.int(ub, n_vars))
     model$variables[[var_name]] <- var
-  } else {
+  }
+  else {
     stop(paste0("The variable definition does not seem to be right.",
                 " Take a look at the example models on the website on how",
                 " to formulate variables"))
